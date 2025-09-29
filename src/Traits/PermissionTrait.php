@@ -143,13 +143,22 @@ trait PermissionTrait {
 	/**
 	 * Kiểm tra user có permission cụ thể không.
 	 */
-	public function hasPermissionTo(string $permissionName): bool {
-		if ($this->permissions()->where('name', $permissionName)->exists()) {
+	public function hasPermissionTo(string $permissionName, ?string $guardName = null): bool {
+		// Lấy guard_name từ model hiện tại nếu không được truyền vào
+		if ($guardName === null) {
+			$guardName = $this->guard_name ?? 'web';
+		}
+
+		// Kiểm tra permission trực tiếp với guard_name
+		if ($this->permissions()->where('name', $permissionName)->where('guard_name', $guardName)->exists()) {
 			return true;
 		}
+
+		// Kiểm tra permission thông qua roles với guard_name
 		return $this->roles()
-			->whereHas('permissions', function($q) use ($permissionName) {
-				$q->where('name', $permissionName);
+			->where('guard_name', $guardName)
+			->whereHas('permissions', function($q) use ($permissionName, $guardName) {
+				$q->where('name', $permissionName)->where('guard_name', $guardName);
 			})
 			->exists();
 	}
@@ -158,7 +167,9 @@ trait PermissionTrait {
 	 * Beauty function - Kiểm tra user có permission cụ thể không.
 	 */
 	public function can($permission, $arguments = []): bool {
-		return $this->hasPermissionTo((string)$permission);
+		// Lấy guard_name từ model hiện tại
+		$guardName = $this->guard_name ?? 'web';
+		return $this->hasPermissionTo((string)$permission, $guardName);
 	}
 
 }
