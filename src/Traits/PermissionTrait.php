@@ -7,6 +7,15 @@ use Illuminate\Database\Eloquent\Relations\MorphToMany;
 trait PermissionTrait {
 
 	/**
+	 * Lấy guard_name của model hiện tại.
+	 *
+	 * @return string
+	 */
+	protected function getGuardName(): string {
+		return $this->guard_name ?? 'web';
+	}
+
+	/**
 	 * Chuyển đổi mảng roles thành mảng ID của roles.
 	 *
 	 * @param array $roles
@@ -19,7 +28,13 @@ trait PermissionTrait {
 		$names = array_map(fn($r) => is_string($r) ? $r : ($r->name ?? null), $flat);
 		$names = array_filter($names);
 		if (!$names) return [];
-		return $this->roleModel::query()->whereIn('name', $names)->pluck('id')->all();
+
+		$guardName = $this->getGuardName();
+		return $this->roleModel::query()
+			->whereIn('name', $names)
+			->where('guard_name', $guardName)
+			->pluck('id')
+			->all();
 	}
 
 	/**
@@ -35,7 +50,13 @@ trait PermissionTrait {
 		$names = array_map(fn($p) => is_string($p) ? $p : ($p->name ?? null), $flat);
 		$names = array_filter($names);
 		if (!$names) return [];
-		return $this->permissionModel::query()->whereIn('name', $names)->pluck('id')->all();
+
+		$guardName = $this->getGuardName();
+		return $this->permissionModel::query()
+			->whereIn('name', $names)
+			->where('guard_name', $guardName)
+			->pluck('id')
+			->all();
 	}
 
 	/*
@@ -49,13 +70,16 @@ trait PermissionTrait {
 	 * @return MorphToMany
 	 */
 	public function roles(): MorphToMany {
+		$guardName = $this->getGuardName();
+
 		return $this->morphToMany(
 			$this->roleModel,
 			'model',
 			'cm_model_has_roles',
 			'model_id',
 			'role_id'
-		)->withTimestamps();
+		)->where('cm_roles.guard_name', $guardName)
+			->withTimestamps();
 	}
 
 	/**
@@ -64,13 +88,16 @@ trait PermissionTrait {
 	 * @return MorphToMany
 	 */
 	public function permissions(): MorphToMany {
+		$guardName = $this->getGuardName();
+
 		return $this->morphToMany(
 			$this->permissionModel,
 			'model',
 			'cm_model_has_permissions',
 			'model_id',
 			'permission_id'
-		)->withTimestamps();
+		)->where('cm_permissions.guard_name', $guardName)
+			->withTimestamps();
 	}
 
 	/*
@@ -79,11 +106,27 @@ trait PermissionTrait {
 
 	/**
 	 * Gán roles cho user mà không xóa các roles đã có.
-	 *
+	 * Validate guard_name trước khi gán.
+	 * @throws \Exception
 	 */
 	public function assignRole(...$roles): self {
 		$roleIds = $this->resolveRoleIds($roles);
-		if ($roleIds) $this->roles()->syncWithoutDetaching($roleIds);
+
+		if ($roleIds) {
+			// Validate guard_name của roles phải khớp với user
+			$guardName = $this->getGuardName();
+			$invalidRoles = $this->roleModel::query()
+				->whereIn('id', $roleIds)
+				->where('guard_name', '!=', $guardName)
+				->exists();
+
+			if ($invalidRoles) {
+				throw new \Exception("Cannot assign roles with different guard_name. Expected guard: {$guardName}");
+			}
+
+			$this->roles()->syncWithoutDetaching($roleIds);
+		}
+
 		return $this;
 	}
 
@@ -98,9 +141,25 @@ trait PermissionTrait {
 
 	/**
 	 * Đồng bộ roles - thay thế tất cả roles hiện tại bằng roles mới.
+	 * Validate guard_name trước khi sync.
+	 * @throws \Exception
 	 */
 	public function syncRoles(...$roles): self {
 		$roleIds = $this->resolveRoleIds($roles);
+
+		// Validate guard_name của roles phải khớp với user
+		if ($roleIds) {
+			$guardName = $this->getGuardName();
+			$invalidRoles = $this->roleModel::query()
+				->whereIn('id', $roleIds)
+				->where('guard_name', '!=', $guardName)
+				->exists();
+
+			if ($invalidRoles) {
+				throw new \Exception("Cannot sync roles with different guard_name. Expected guard: {$guardName}");
+			}
+		}
+
 		$this->roles()->sync($roleIds);
 		return $this;
 	}
@@ -110,15 +169,36 @@ trait PermissionTrait {
 	 */
 	public function hasRole($roles): bool {
 		$names = is_array($roles) ? $roles : [$roles];
-		return $this->roles()->whereIn('name', $names)->exists();
+		$guardName = $this->getGuardName();
+		return $this->roles()
+			->whereIn('name', $names)
+			->where('guard_name', $guardName)
+			->exists();
 	}
 
 	/**
-	 * Cấp permissions trực tiếp cho user.
+	 * Cấp permissions trực tiếp cho user hoặc role.
+	 * Validate guard_name trước khi gán.
+	 * @throws \Exception
 	 */
 	public function givePermissionTo(...$permissions): self {
 		$ids = $this->resolvePermissionIds($permissions);
-		if ($ids) $this->permissions()->syncWithoutDetaching($ids);
+
+		if ($ids) {
+			// Validate guard_name của permissions phải khớp với model hiện tại
+			$guardName = $this->getGuardName();
+			$invalidPermissions = $this->permissionModel::query()
+				->whereIn('id', $ids)
+				->where('guard_name', '!=', $guardName)
+				->exists();
+
+			if ($invalidPermissions) {
+				throw new \Exception("Cannot assign permissions with different guard_name. Expected guard: {$guardName}");
+			}
+
+			$this->permissions()->syncWithoutDetaching($ids);
+		}
+
 		return $this;
 	}
 
@@ -133,9 +213,25 @@ trait PermissionTrait {
 
 	/**
 	 * Đồng bộ permissions - thay thế tất cả permissions hiện tại.
+	 * Validate guard_name trước khi sync.
+	 * @throws \Exception
 	 */
 	public function syncPermissions(...$permissions): self {
 		$ids = $this->resolvePermissionIds($permissions);
+
+		// Validate guard_name của permissions phải khớp với model hiện tại
+		if ($ids) {
+			$guardName = $this->getGuardName();
+			$invalidPermissions = $this->permissionModel::query()
+				->whereIn('id', $ids)
+				->where('guard_name', '!=', $guardName)
+				->exists();
+
+			if ($invalidPermissions) {
+				throw new \Exception("Cannot sync permissions with different guard_name. Expected guard: {$guardName}");
+			}
+		}
+
 		$this->permissions()->sync($ids);
 		return $this;
 	}
