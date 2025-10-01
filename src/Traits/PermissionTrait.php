@@ -19,44 +19,50 @@ trait PermissionTrait {
 	 * Chuyển đổi mảng roles thành mảng ID của roles.
 	 *
 	 * @param array $roles
+	 * @param bool $force Nếu true, không kiểm tra guard_name
 	 *
 	 * @return array
 	 */
-	protected function resolveRoleIds(array $roles): array {
+	protected function resolveRoleIds(array $roles, bool $force = false): array {
 		$flat = collect($roles)->flatten()->filter()->all();
 		if (!$flat) return [];
 		$names = array_map(fn($r) => is_string($r) ? $r : ($r->name ?? null), $flat);
 		$names = array_filter($names);
 		if (!$names) return [];
 
-		$guardName = $this->getGuardName();
-		return $this->roleModel::query()
-			->whereIn('name', $names)
-			->where('guard_name', $guardName)
-			->pluck('id')
-			->all();
+		$query = $this->roleModel::query()->whereIn('name', $names);
+
+		if (!$force) {
+			$guardName = $this->getGuardName();
+			$query->where('guard_name', $guardName);
+		}
+
+		return $query->pluck('id')->all();
 	}
 
 	/**
 	 * Chuyển đổi mảng permissions thành mảng ID của permissions.
 	 *
 	 * @param array $permissions
+	 * @param bool $force Nếu true, không kiểm tra guard_name
 	 *
 	 * @return array
 	 */
-	protected function resolvePermissionIds(array $permissions): array {
+	protected function resolvePermissionIds(array $permissions, bool $force = false): array {
 		$flat = collect($permissions)->flatten()->filter()->all();
 		if (!$flat) return [];
 		$names = array_map(fn($p) => is_string($p) ? $p : ($p->name ?? null), $flat);
 		$names = array_filter($names);
 		if (!$names) return [];
 
-		$guardName = $this->getGuardName();
-		return $this->permissionModel::query()
-			->whereIn('name', $names)
-			->where('guard_name', $guardName)
-			->pluck('id')
-			->all();
+		$query = $this->permissionModel::query()->whereIn('name', $names);
+
+		if (!$force) {
+			$guardName = $this->getGuardName();
+			$query->where('guard_name', $guardName);
+		}
+
+		return $query->pluck('id')->all();
 	}
 
 	/*
@@ -106,22 +112,32 @@ trait PermissionTrait {
 
 	/**
 	 * Gán roles cho user mà không xóa các roles đã có.
-	 * Validate guard_name trước khi gán.
+	 *
+	 * @param mixed ...$roles
+	 * @param bool $force Nếu true, bỏ qua kiểm tra guard_name
 	 * @throws \Exception
 	 */
 	public function assignRole(...$roles): self {
-		$roleIds = $this->resolveRoleIds($roles);
+		// Kiểm tra nếu tham số cuối là boolean $force
+		$force = false;
+		if (!empty($roles) && is_bool(end($roles))) {
+			$force = array_pop($roles);
+		}
+
+		$roleIds = $this->resolveRoleIds($roles, $force);
 
 		if ($roleIds) {
-			// Validate guard_name của roles phải khớp với user
-			$guardName = $this->getGuardName();
-			$invalidRoles = $this->roleModel::query()
-				->whereIn('id', $roleIds)
-				->where('guard_name', '!=', $guardName)
-				->exists();
+			if (!$force) {
+				// Validate guard_name của roles phải khớp với user
+				$guardName = $this->getGuardName();
+				$invalidRoles = $this->roleModel::query()
+					->whereIn('id', $roleIds)
+					->where('guard_name', '!=', $guardName)
+					->exists();
 
-			if ($invalidRoles) {
-				throw new \Exception("Cannot assign roles with different guard_name. Expected guard: {$guardName}");
+				if ($invalidRoles) {
+					throw new \Exception("Cannot assign roles with different guard_name. Expected guard: {$guardName}");
+				}
 			}
 
 			$this->roles()->syncWithoutDetaching($roleIds);
@@ -134,21 +150,35 @@ trait PermissionTrait {
 	 * Loại bỏ roles khỏi user.
 	 */
 	public function removeRole(...$roles): self {
-		$roleIds = $this->resolveRoleIds($roles);
+		// Kiểm tra nếu tham số cuối là boolean $force
+		$force = false;
+		if (!empty($roles) && is_bool(end($roles))) {
+			$force = array_pop($roles);
+		}
+
+		$roleIds = $this->resolveRoleIds($roles, $force);
 		if ($roleIds) $this->roles()->detach($roleIds);
 		return $this;
 	}
 
 	/**
 	 * Đồng bộ roles - thay thế tất cả roles hiện tại bằng roles mới.
-	 * Validate guard_name trước khi sync.
+	 *
+	 * @param mixed ...$roles
+	 * @param bool $force Nếu true, bỏ qua kiểm tra guard_name
 	 * @throws \Exception
 	 */
 	public function syncRoles(...$roles): self {
-		$roleIds = $this->resolveRoleIds($roles);
+		// Kiểm tra nếu tham số cuối là boolean $force
+		$force = false;
+		if (!empty($roles) && is_bool(end($roles))) {
+			$force = array_pop($roles);
+		}
 
-		// Validate guard_name của roles phải khớp với user
-		if ($roleIds) {
+		$roleIds = $this->resolveRoleIds($roles, $force);
+
+		if ($roleIds && !$force) {
+			// Validate guard_name của roles phải khớp với user
 			$guardName = $this->getGuardName();
 			$invalidRoles = $this->roleModel::query()
 				->whereIn('id', $roleIds)
@@ -178,22 +208,32 @@ trait PermissionTrait {
 
 	/**
 	 * Cấp permissions trực tiếp cho user hoặc role.
-	 * Validate guard_name trước khi gán.
+	 *
+	 * @param mixed ...$permissions
+	 * @param bool $force Nếu true, bỏ qua kiểm tra guard_name
 	 * @throws \Exception
 	 */
 	public function givePermissionTo(...$permissions): self {
-		$ids = $this->resolvePermissionIds($permissions);
+		// Kiểm tra nếu tham số cuối là boolean $force
+		$force = false;
+		if (!empty($permissions) && is_bool(end($permissions))) {
+			$force = array_pop($permissions);
+		}
+
+		$ids = $this->resolvePermissionIds($permissions, $force);
 
 		if ($ids) {
-			// Validate guard_name của permissions phải khớp với model hiện tại
-			$guardName = $this->getGuardName();
-			$invalidPermissions = $this->permissionModel::query()
-				->whereIn('id', $ids)
-				->where('guard_name', '!=', $guardName)
-				->exists();
+			if (!$force) {
+				// Validate guard_name của permissions phải khớp với model hiện tại
+				$guardName = $this->getGuardName();
+				$invalidPermissions = $this->permissionModel::query()
+					->whereIn('id', $ids)
+					->where('guard_name', '!=', $guardName)
+					->exists();
 
-			if ($invalidPermissions) {
-				throw new \Exception("Cannot assign permissions with different guard_name. Expected guard: {$guardName}");
+				if ($invalidPermissions) {
+					throw new \Exception("Cannot assign permissions with different guard_name. Expected guard: {$guardName}");
+				}
 			}
 
 			$this->permissions()->syncWithoutDetaching($ids);
@@ -206,21 +246,35 @@ trait PermissionTrait {
 	 * Thu hồi permissions trực tiếp từ user.
 	 */
 	public function revokePermissionTo(...$permissions): self {
-		$ids = $this->resolvePermissionIds($permissions);
+		// Kiểm tra nếu tham số cuối là boolean $force
+		$force = false;
+		if (!empty($permissions) && is_bool(end($permissions))) {
+			$force = array_pop($permissions);
+		}
+
+		$ids = $this->resolvePermissionIds($permissions, $force);
 		if ($ids) $this->permissions()->detach($ids);
 		return $this;
 	}
 
 	/**
 	 * Đồng bộ permissions - thay thế tất cả permissions hiện tại.
-	 * Validate guard_name trước khi sync.
+	 *
+	 * @param mixed ...$permissions
+	 * @param bool $force Nếu true, bỏ qua kiểm tra guard_name
 	 * @throws \Exception
 	 */
 	public function syncPermissions(...$permissions): self {
-		$ids = $this->resolvePermissionIds($permissions);
+		// Kiểm tra nếu tham số cuối là boolean $force
+		$force = false;
+		if (!empty($permissions) && is_bool(end($permissions))) {
+			$force = array_pop($permissions);
+		}
 
-		// Validate guard_name của permissions phải khớp với model hiện tại
-		if ($ids) {
+		$ids = $this->resolvePermissionIds($permissions, $force);
+
+		if ($ids && !$force) {
+			// Validate guard_name của permissions phải khớp với model hiện tại
 			$guardName = $this->getGuardName();
 			$invalidPermissions = $this->permissionModel::query()
 				->whereIn('id', $ids)
