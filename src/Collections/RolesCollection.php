@@ -3,12 +3,13 @@
 namespace WPSPCORE\Permission\Collections;
 
 class RolesCollection {
+
+	private       $user;
 	private array $roles;
-	private $user;
 
 	public function __construct(array $roles, $user) {
+		$this->user  = $user;
 		$this->roles = array_values($roles);
-		$this->user = $user;
 	}
 
 	public function getPermissions(): array {
@@ -60,16 +61,6 @@ class RolesCollection {
 		return $permissions;
 	}
 
-	public function __get($name) {
-		if ($name === 'permissions') {
-			return $this->getPermissions();
-		}
-		elseif ($name === 'roles_and_permissions') {
-			return $this->getRolesAndPermissions();
-		}
-		return null;
-	}
-
 	public function toArray(): array {
 		return $this->roles;
 	}
@@ -93,4 +84,5 @@ class RolesCollection {
 	public function contains($role): bool {
 		return in_array($role, $this->roles, true);
 	}
+
 }

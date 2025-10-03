@@ -63,6 +63,44 @@ trait DBPermissionTrait {
 		return array_values(array_unique(array_merge($direct ?? [], $via ?? [])));
 	}
 
+	public function rolesAndPermissions(): array {
+		global $wpdb;
+		$p = $this->funcs->_getDBCustomMigrationTablePrefix();
+
+		if (empty($this->roles)) {
+			return [];
+		}
+
+		// Tạo placeholders cho roles
+		$placeholders = implode(',', array_fill(0, count($this->roles()), '%s'));
+
+		// Query để lấy permissions nhóm theo role
+		$results = $wpdb->get_results($wpdb->prepare("
+			SELECT r.name as role_name, pr.name as permission_name
+			FROM {$p}permissions pr
+			JOIN {$p}role_has_permissions rp ON rp.permission_id=pr.id
+			JOIN {$p}roles r ON r.id=rp.role_id
+			JOIN {$p}model_has_roles mr ON mr.role_id=r.id
+			WHERE mr.model_id=%d AND r.name IN ($placeholders)
+			ORDER BY r.name, pr.name
+		", $this->id(), ...$this->roles()));
+
+		// Nhóm kết quả theo role
+		$permissions = [];
+
+		// Khởi tạo array cho tất cả roles (kể cả không có permission)
+		foreach ($this->roles as $roleName) {
+			$permissions[$roleName] = [];
+		}
+
+		// Gán permissions vào từng role
+		foreach ($results as $row) {
+			$permissions[$row->role_name][] = $row->permission_name;
+		}
+
+		return $permissions;
+	}
+
 	public function assignRole(string|array $roles): void {
 		global $wpdb;
 		$p      = $this->funcs->_getDBCustomMigrationTablePrefix();
