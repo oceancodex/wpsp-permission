@@ -70,7 +70,7 @@ trait DBPermissionTrait {
 
 		// SQL: quyền trực tiếp + khớp guard_name
 		$sql = "
-            SELECT DISTINCT pr.name
+            SELECT pr.name
             FROM {$p}permissions pr
             JOIN {$p}model_has_permissions mp ON mp.permission_id=pr.id
             WHERE mp.model_id=%d
