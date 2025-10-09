@@ -4,104 +4,89 @@ namespace WPSPCORE\Permission\Traits;
 
 trait DBPermissionTrait {
 
-	public function can(string $perm): bool {
-		global $wpdb;
-		$p   = $this->funcs->_getDBCustomMigrationTablePrefix();
-		$uid = $this->id();
-
-		// Lấy guard_name từ thuộc tính hoặc mặc định là 'web'
-		$guardName = $this->guard_name ?? 'web';
-
-		$sql = $wpdb->prepare("
-            SELECT 1 FROM {$p}permissions pr
-            WHERE pr.name=%s AND pr.guard_name=%s AND (
-                EXISTS (SELECT 1 FROM {$p}model_has_permissions mp WHERE mp.model_id=%d AND mp.permission_id=pr.id)
-                OR EXISTS (SELECT 1 FROM {$p}model_has_roles mr
-                           JOIN {$p}roles r ON r.id=mr.role_id
-                           JOIN {$p}role_has_permissions rp ON rp.role_id=mr.role_id
-                           WHERE mr.model_id=%d AND rp.permission_id=pr.id AND r.guard_name=%s)
-            ) LIMIT 1", $perm, $guardName, $uid, $uid, $guardName);
-		return (bool)$wpdb->get_var($sql);
-	}
-
-	public function hasRole(string $role): bool {
-		global $wpdb;
-		$p = $this->funcs->_getDBCustomMigrationTablePrefix();
-
-		// Lấy guard_name từ thuộc tính hoặc mặc định là 'web'
-		$guardName = $this->guard_name ?? 'web';
-
-		$sql = $wpdb->prepare("
-            SELECT 1 FROM {$p}roles r
-            WHERE r.name=%s AND r.guard_name=%s AND EXISTS (
-                SELECT 1 FROM {$p}model_has_roles mr WHERE mr.model_id=%d AND mr.role_id=r.id
-            ) LIMIT 1", $role, $guardName, $this->id());
-		return (bool)$wpdb->get_var($sql);
-	}
-
 	public function roles(): array {
 		global $wpdb;
 		$p = $this->funcs->_getDBCustomMigrationTablePrefix();
 
-		// Guard của user (mặc định 'web')
-		$guardName = isset($this->guard_name) && $this->guard_name ? $this->guard_name : 'web';
+		// Guard của user (mặc định ['web'])
+		$guardName = $this->guard_name ?? ['web'];
 
+		// Ép thành mảng nếu không phải mảng
+		if (!is_array($guardName)) {
+			$guardName = [$guardName];
+		}
+
+		// Tạo placeholders cho mệnh đề IN (...)
+		$placeholders = implode(',', array_fill(0, count($guardName), '%s'));
+
+		// Viết lại SQL
 		$sql = "
-            SELECT r.name
-            FROM {$p}roles r
-            JOIN {$p}model_has_roles mr ON mr.role_id = r.id
-            WHERE mr.model_id = %d
-              AND r.guard_name = %s
-        ";
+	        SELECT r.name
+	        FROM {$p}roles r
+	        JOIN {$p}model_has_roles mr ON mr.role_id = r.id
+	        WHERE mr.model_id = %d
+	          AND r.guard_name IN ($placeholders)
+	    ";
 
-		$params = array($this->id(), $guardName);
-		$prepared = call_user_func_array(array($wpdb, 'prepare'), array_merge(array($sql), $params));
+		// Ghép các tham số vào đúng thứ tự
+		$params = array_merge([$this->id()], $guardName);
 
+		// Chuẩn bị và thực thi
+		$prepared = call_user_func_array([$wpdb, 'prepare'], array_merge([$sql], $params));
 		$roles = $wpdb->get_col($prepared);
-		return is_array($roles) ? $roles : array();
+
+		return is_array($roles) ? $roles : [];
 	}
 
 	public function permissions(): array {
 		global $wpdb;
 		$p = $this->funcs->_getDBCustomMigrationTablePrefix();
 
-		// Guard của user (mặc định 'web')
-		$guardName = isset($this->guard_name) && $this->guard_name ? $this->guard_name : 'web';
+		// Guard của user (mặc định ['web'])
+		$guardName = $this->guard_name ?? ['web'];
 
-		// SQL: quyền trực tiếp + khớp guard_name
-		$sql = "
-            SELECT pr.name
-            FROM {$p}permissions pr
-            JOIN {$p}model_has_permissions mp ON mp.permission_id=pr.id
-            WHERE mp.model_id=%d
-              AND pr.guard_name=%s
-        ";
+		// Ép về mảng nếu là chuỗi
+		if (!is_array($guardName)) {
+			$guardName = [$guardName];
+		}
 
-		$params = array($this->id(), $guardName);
+		// Tạo placeholders cho mệnh đề IN (...)
+		$placeholders = implode(',', array_fill(0, count($guardName), '%s'));
 
-		$prepared = call_user_func_array(array($wpdb, 'prepare'), array_merge(array($sql), $params));
-		$direct = $wpdb->get_col($prepared);
+		// --- 1️⃣ Quyền trực tiếp ---
+		$sqlDirect = "
+	        SELECT pr.name
+	        FROM {$p}permissions pr
+	        JOIN {$p}model_has_permissions mp ON mp.permission_id = pr.id
+	        WHERE mp.model_id = %d
+	          AND pr.guard_name IN ($placeholders)
+	    ";
 
-		// SQL: quyền qua roles + khớp guard_name cho cả role và permission
+		$paramsDirect = array_merge([$this->id()], $guardName);
+		$preparedDirect = call_user_func_array([$wpdb, 'prepare'], array_merge([$sqlDirect], $paramsDirect));
+		$direct = $wpdb->get_col($preparedDirect);
+
+		// --- 2️⃣ Quyền thông qua roles ---
 //		$sqlVia = "
-//            SELECT DISTINCT pr.name
-//            FROM {$p}permissions pr
-//            JOIN {$p}role_has_permissions rp ON rp.permission_id=pr.id
-//            JOIN {$p}roles r ON r.id = rp.role_id
-//            JOIN {$p}model_has_roles mr ON mr.role_id = r.id
-//            WHERE mr.model_id=%d
-//              AND r.guard_name=%s
-//              AND pr.guard_name=%s
-//        ";
-//
-//		$paramsVia = array($this->id(), $guardName, $guardName);
-//		$preparedVia = call_user_func_array(array($wpdb, 'prepare'), array_merge(array($sqlVia), $paramsVia));
+//	        SELECT DISTINCT pr.name
+//	        FROM {$p}permissions pr
+//	        JOIN {$p}role_has_permissions rp ON rp.permission_id = pr.id
+//	        JOIN {$p}roles r ON r.id = rp.role_id
+//	        JOIN {$p}model_has_roles mr ON mr.role_id = r.id
+//	        WHERE mr.model_id = %d
+//	          AND r.guard_name IN ($placeholders)
+//	          AND pr.guard_name IN ($placeholders)
+//	    ";
+
+//		$paramsVia = array_merge([$this->id()], $guardName, $guardName);
+//		$preparedVia = call_user_func_array([$wpdb, 'prepare'], array_merge([$sqlVia ?? []], $paramsVia));
 //		$via = $wpdb->get_col($preparedVia);
 
-		$direct = is_array($direct) ? $direct : array();
-		$via    = (isset($via) && is_array($via)) ? $via : array();
+		// --- 3️⃣ Hợp nhất và loại trùng ---
+		$direct = is_array($direct) ? $direct : [];
+//		$via = is_array($via) ? $via : [];
 
-		return array_values(array_unique(array_merge($direct, $via)));
+		return array_values(array_unique(array_merge($direct, $via ?? [])));
 	}
 
 	public function rolesAndPermissions(): array {
@@ -112,44 +97,56 @@ trait DBPermissionTrait {
 			return [];
 		}
 
-		// Guard của user (mặc định 'web')
-		$guardName = isset($this->guard_name) && $this->guard_name ? $this->guard_name : 'web';
+		// Guard của user (mặc định ['web'])
+		$guardName = $this->guard_name ?? ['web'];
+
+		// Ép về mảng nếu là chuỗi
+		if (!is_array($guardName)) {
+			$guardName = [$guardName];
+		}
 
 		// Tạo placeholders cho roles
 		$roleCount = count($this->roles);
-		$placeholders = implode(',', array_fill(0, $roleCount, '%s'));
+		if ($roleCount === 0) {
+			return [];
+		}
+		$rolePlaceholders = implode(',', array_fill(0, $roleCount, '%s'));
+
+		// Tạo placeholders cho guard_name
+		$guardPlaceholders = implode(',', array_fill(0, count($guardName), '%s'));
 
 		// Câu SQL
 		$sql = "
-			SELECT r.name as role_name, pr.name as permission_name
+			SELECT r.name AS role_name, pr.name AS permission_name
 			FROM {$p}permissions pr
-			JOIN {$p}role_has_permissions rp ON rp.permission_id=pr.id
-			JOIN {$p}roles r ON r.id=rp.role_id
-			JOIN {$p}model_has_roles mr ON mr.role_id=r.id
-			WHERE mr.model_id=%d
-			  AND r.name IN ($placeholders)
-			  AND r.guard_name=%s
-			  AND pr.guard_name=%s
+			JOIN {$p}role_has_permissions rp ON rp.permission_id = pr.id
+			JOIN {$p}roles r ON r.id = rp.role_id
+			JOIN {$p}model_has_roles mr ON mr.role_id = r.id
+			WHERE mr.model_id = %d
+			  AND r.name IN ($rolePlaceholders)
+			  AND r.guard_name IN ($guardPlaceholders)
+			  AND pr.guard_name IN ($guardPlaceholders)
 			ORDER BY r.name, pr.name
 		";
 
 		// Tham số theo đúng thứ tự placeholder
 		$params = array_merge(
-			array($this->id()),
+			[$this->id()],
 			array_values($this->roles),
-			array($guardName, $guardName)
+			$guardName, // cho r.guard_name IN (...)
+			$guardName  // cho pr.guard_name IN (...)
 		);
 
 		// Chuẩn bị và thực thi
-		$prepared = call_user_func_array(array($wpdb, 'prepare'), array_merge(array($sql), $params));
+		$prepared = call_user_func_array([$wpdb, 'prepare'], array_merge([$sql], $params));
 		$results = $wpdb->get_results($prepared);
 
 		// Nhóm kết quả theo role
-		$permissions = array();
+		$permissions = [];
 
 		// Khởi tạo array cho tất cả roles (kể cả không có permission)
 		foreach ($this->roles as $roleName) {
-			$permissions[$roleName] = array();
+			$permissions[$roleName] = [];
 		}
 
 		// Gán permissions vào từng role
@@ -162,7 +159,18 @@ trait DBPermissionTrait {
 		return $permissions;
 	}
 
-	public function assignRole(string|array $roles): void {
+	/*
+	 *
+	 */
+
+	/**
+	 * Gán roles cho user mà không xóa các roles đã có.
+	 *
+	 * @param mixed ...$roles
+	 * @param bool $force Nếu true, bỏ qua kiểm tra guard_name
+	 * @throws \Exception
+	 */
+	public function assignRole($roles): void {
 		global $wpdb;
 		$p      = $this->funcs->_getDBCustomMigrationTablePrefix();
 		$userId = $this->id();
@@ -194,7 +202,50 @@ trait DBPermissionTrait {
 		}
 	}
 
-	public function givePermissionTo(string|array $perms): void {
+	/**
+	 * Kiểm tra user có role nào đó không.
+	 */
+	public function hasRole(string $role): bool {
+		global $wpdb;
+		$p = $this->funcs->_getDBCustomMigrationTablePrefix();
+
+		// Lấy guard_name từ thuộc tính hoặc mặc định là ['web']
+		$guardName = $this->guard_name ?? ['web'];
+
+		// Nếu là chuỗi thì ép về mảng
+		if (!is_array($guardName)) {
+			$guardName = [$guardName];
+		}
+
+		// Tạo placeholders tương ứng với số lượng guard_name
+		$placeholders = implode(',', array_fill(0, count($guardName), '%s'));
+
+		// Chuẩn bị SQL
+		$sql = $wpdb->prepare("
+		    SELECT 1 FROM {$p}roles r
+		    WHERE r.name = %s
+		      AND r.guard_name IN ($placeholders)
+		      AND EXISTS (
+		          SELECT 1
+		          FROM {$p}model_has_roles mr
+		          WHERE mr.model_id = %d
+		            AND mr.role_id = r.id
+		      )
+		    LIMIT 1
+		", array_merge([$role], $guardName, [$this->id()]));
+
+		// Trả về true nếu tồn tại ít nhất 1 bản ghi
+		return (bool) $wpdb->get_var($sql);
+	}
+
+	/**
+	 * Cấp permissions trực tiếp cho user hoặc role.
+	 *
+	 * @param mixed ...$permissions
+	 * @param bool $force Nếu true, bỏ qua kiểm tra guard_name
+	 * @throws \Exception
+	 */
+	public function givePermissionTo($perms): void {
 		global $wpdb;
 		$p      = $this->funcs->_getDBCustomMigrationTablePrefix();
 		$userId = $this->id();
@@ -224,6 +275,58 @@ trait DBPermissionTrait {
 				", $userId, $pid));
 			}
 		}
+	}
+
+	/*
+	 *
+	 */
+
+	/**
+	 * Beauty function - Kiểm tra user có permission cụ thể không.
+	 */
+	public function can(string $perm): bool {
+		global $wpdb;
+		$p   = $this->funcs->_getDBCustomMigrationTablePrefix();
+		$uid = $this->id();
+
+		// Lấy guard_name từ thuộc tính hoặc mặc định là ['web']
+		$guardName = $this->guard_name ?? ['web'];
+
+		// Ép về mảng nếu là chuỗi
+		if (!is_array($guardName)) {
+			$guardName = [$guardName];
+		}
+
+		// Tạo placeholders cho IN (...)
+		$placeholders = implode(',', array_fill(0, count($guardName), '%s'));
+
+		// Chuẩn bị SQL
+		$sql = $wpdb->prepare("
+		    SELECT 1
+		    FROM {$p}permissions pr
+		    WHERE pr.name = %s
+		      AND pr.guard_name IN ($placeholders)
+		      AND (
+		          EXISTS (
+		              SELECT 1
+		              FROM {$p}model_has_permissions mp
+		              WHERE mp.model_id = %d
+		                AND mp.permission_id = pr.id
+		          )
+		          OR EXISTS (
+		              SELECT 1
+		              FROM {$p}model_has_roles mr
+		              JOIN {$p}roles r ON r.id = mr.role_id
+		              JOIN {$p}role_has_permissions rp ON rp.role_id = mr.role_id
+		              WHERE mr.model_id = %d
+		                AND rp.permission_id = pr.id
+		                AND r.guard_name IN ($placeholders)
+		          )
+		      )
+		    LIMIT 1
+		", array_merge([$perm], $guardName, [$uid, $uid], $guardName));
+
+		return (bool) $wpdb->get_var($sql);
 	}
 
 }

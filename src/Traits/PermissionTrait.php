@@ -9,10 +9,10 @@ trait PermissionTrait {
 	/**
 	 * Lấy guard_name của model hiện tại.
 	 *
-	 * @return string
+	 * @return string|array|null
 	 */
-	protected function getGuardName(): string {
-		return $this->guard_name ?? 'web';
+	protected function getGuardName() {
+		return $this->guard_name ?? ['web'];
 	}
 
 	/**
@@ -34,7 +34,7 @@ trait PermissionTrait {
 
 		if (!$force) {
 			$guardName = $this->getGuardName();
-			$query->where('guard_name', $guardName);
+			$query->whereIn('guard_name', is_array($guardName) ? $guardName : [$guardName]);
 		}
 
 		return $query->pluck('id')->all();
@@ -59,7 +59,7 @@ trait PermissionTrait {
 
 		if (!$force) {
 			$guardName = $this->getGuardName();
-			$query->where('guard_name', $guardName);
+			$query->whereIn('guard_name', is_array($guardName) ? $guardName : [$guardName]);
 		}
 
 		return $query->pluck('id')->all();
@@ -84,7 +84,7 @@ trait PermissionTrait {
 			'cm_model_has_roles',
 			'model_id',
 			'role_id'
-		)->where('cm_roles.guard_name', $guardName)
+		)->whereIn('cm_roles.guard_name', is_array($guardName) ? $guardName : [$guardName])
 			->withTimestamps();
 	}
 
@@ -102,7 +102,7 @@ trait PermissionTrait {
 			'cm_model_has_permissions',
 			'model_id',
 			'permission_id'
-		)->where('cm_permissions.guard_name', $guardName)
+		)->whereIn('cm_permissions.guard_name', is_array($guardName) ? $guardName : [$guardName])
 			->withTimestamps();
 	}
 
@@ -132,7 +132,7 @@ trait PermissionTrait {
 				$guardName = $this->getGuardName();
 				$invalidRoles = $this->roleModel::query()
 					->whereIn('id', $roleIds)
-					->where('guard_name', '!=', $guardName)
+					->whereNotIn('guard_name', is_array($guardName) ? $guardName : [$guardName])
 					->exists();
 
 				if ($invalidRoles) {
@@ -182,7 +182,7 @@ trait PermissionTrait {
 			$guardName = $this->getGuardName();
 			$invalidRoles = $this->roleModel::query()
 				->whereIn('id', $roleIds)
-				->where('guard_name', '!=', $guardName)
+				->whereNotIn('guard_name', is_array($guardName) ? $guardName : [$guardName])
 				->exists();
 
 			if ($invalidRoles) {
@@ -202,7 +202,7 @@ trait PermissionTrait {
 		$guardName = $this->getGuardName();
 		return $this->roles()
 			->whereIn('name', $names)
-			->where('guard_name', $guardName)
+			->whereIn('guard_name', is_array($guardName) ? $guardName : [$guardName])
 			->exists();
 	}
 
@@ -228,7 +228,7 @@ trait PermissionTrait {
 				$guardName = $this->getGuardName();
 				$invalidPermissions = $this->permissionModel::query()
 					->whereIn('id', $ids)
-					->where('guard_name', '!=', $guardName)
+					->whereNotIn('guard_name', is_array($guardName) ? $guardName : [$guardName])
 					->exists();
 
 				if ($invalidPermissions) {
@@ -278,7 +278,7 @@ trait PermissionTrait {
 			$guardName = $this->getGuardName();
 			$invalidPermissions = $this->permissionModel::query()
 				->whereIn('id', $ids)
-				->where('guard_name', '!=', $guardName)
+				->whereNotIn('guard_name', is_array($guardName) ? $guardName : [$guardName])
 				->exists();
 
 			if ($invalidPermissions) {
@@ -293,32 +293,36 @@ trait PermissionTrait {
 	/**
 	 * Kiểm tra user có permission cụ thể không.
 	 */
-	public function hasPermissionTo(string $permissionName, ?string $guardName = null): bool {
+	public function hasPermissionTo(string $permissionName, $guardName = null): bool {
 		// Lấy guard_name từ model hiện tại nếu không được truyền vào
 		if ($guardName === null) {
-			$guardName = $this->guard_name ?? 'web';
+			$guardName = $this->guard_name ?? ['web'];
 		}
 
 		// Kiểm tra permission trực tiếp với guard_name
-		if ($this->permissions()->where('name', $permissionName)->where('guard_name', $guardName)->exists()) {
+		if ($this->permissions()->where('name', $permissionName)->whereIn('guard_name', is_array($guardName) ? $guardName : [$guardName])->exists()) {
 			return true;
 		}
 
 		// Kiểm tra permission thông qua roles với guard_name
 		return $this->roles()
-			->where('guard_name', $guardName)
+			->whereIn('guard_name', is_array($guardName) ? $guardName : [$guardName])
 			->whereHas('permissions', function($q) use ($permissionName, $guardName) {
-				$q->where('name', $permissionName)->where('guard_name', $guardName);
+				$q->where('name', $permissionName)->whereIn('guard_name', is_array($guardName) ? $guardName : [$guardName]);
 			})
 			->exists();
 	}
+
+	/*
+	 *
+	 */
 
 	/**
 	 * Beauty function - Kiểm tra user có permission cụ thể không.
 	 */
 	public function can($permission, $arguments = []): bool {
 		// Lấy guard_name từ model hiện tại
-		$guardName = $this->guard_name ?? 'web';
+		$guardName = $this->guard_name ?? ['web'];
 		return $this->hasPermissionTo((string)$permission, $guardName);
 	}
 
