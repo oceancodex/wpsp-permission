@@ -3,7 +3,7 @@ namespace WPSPCORE\Permission\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use WPSP\app\Traits\ModelsTrait;
+use WPSPCORE\Database\Traits\ModelsTrait;
 use WPSPCORE\Permission\Contracts\RoleContract;
 use WPSPCORE\Permission\Traits\PermissionTrait;
 use WPSPCORE\Traits\ObserversTrait;
