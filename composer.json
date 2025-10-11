@@ -1,12 +1,12 @@
 {
 	"name": "oceancodex/wpsp-permission",
-	"version": "8.4.0",
+	"version": "8.2.0",
 	"description": "WordPress Starter Plugin - Permission",
 	"keywords": [
 	],
 	"license": "MIT",
 	"require": {
-		"php": "^8.4"
+		"php": "^8.2"
 	},
 	"config": {
 		"sort-packages": true
