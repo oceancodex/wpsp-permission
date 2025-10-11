@@ -4,8 +4,8 @@ namespace WPSPCORE\Permission\Contracts;
 
 interface PermissionContract {
 
-	public function getName(): string;
+	public function getName();
 
-	public function getGuardName(): ?string;
+	public function getGuardName();
 
 }

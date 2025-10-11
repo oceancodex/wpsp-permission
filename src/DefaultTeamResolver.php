@@ -4,16 +4,16 @@ namespace WPSPCORE\Permission;
 
 class DefaultTeamResolver {
 
-	protected int|string|null $teamId = null;
+	protected $teamId = null;
 
-	public function setPermissionsTeamId($id): void {
+	public function setPermissionsTeamId($id) {
 		if ($id instanceof \Illuminate\Database\Eloquent\Model) {
 			$id = $id->getKey();
 		}
 		$this->teamId = $id;
 	}
 
-	public function getPermissionsTeamId(): int|string|null {
+	public function getPermissionsTeamId() {
 		return $this->teamId;
 	}
 

@@ -26,9 +26,9 @@ class RolesModel extends Model implements RoleContract {
 //	protected $dateFormat;
 //	protected $dispatchesEvents;
 //	protected $escapeWhenCastingToString;
-//	protected $fillable = [];
+//	protected $fillable   = [];
 //	protected $forceDeleting;
-	protected $guarded = [];
+	protected $guarded    = [];
 //	protected $hidden;
 //	protected $keyType;
 //	protected $observables;
@@ -47,17 +47,20 @@ class RolesModel extends Model implements RoleContract {
 //	public    $usesUniqueIds;
 //	public    $wasRecentlyCreated;
 
-//	protected static array $observers = [
+//	protected static $observers = [
 //		\WPSP\app\Observers\SettingsObserver::class,
 //	];
 
-//	public function __construct(array $attributes = []) {
+//	public function __construct($attributes = []) {
 //		$this->getConnection()->setTablePrefix('wp_wpsp_');
 //		$this->setConnection(Funcs::instance()->_getDBTablePrefix(false) . 'mysql');
 //		parent::__construct($attributes);
 //	}
 
-	public function permissions(): \Illuminate\Database\Eloquent\Relations\BelongsToMany {
+	/**
+	 * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+	 */
+	public function permissions() {
 		return $this->belongsToMany(
 			PermissionsModel::class,
 			'cm_role_has_permissions',
@@ -70,11 +73,11 @@ class RolesModel extends Model implements RoleContract {
 	 *
 	 */
 
-	public function getName(): string {
-		return (string) $this->attributes['name'];
+	public function getName() {
+		return $this->attributes['name'];
 	}
 
-	public function getGuardName(): ?string {
+	public function getGuardName() {
 		return $this->attributes['guard_name'] ?? null;
 	}
 

@@ -4,7 +4,7 @@ namespace WPSPCORE\Permission\Traits;
 
 trait DBPermissionTrait {
 
-	public function roles(): array {
+	public function roles() {
 		global $wpdb;
 		$p = $this->funcs->_getDBCustomMigrationTablePrefix();
 
@@ -38,7 +38,7 @@ trait DBPermissionTrait {
 		return is_array($roles) ? $roles : [];
 	}
 
-	public function permissions(): array {
+	public function permissions() {
 		global $wpdb;
 		$p = $this->funcs->_getDBCustomMigrationTablePrefix();
 
@@ -89,7 +89,7 @@ trait DBPermissionTrait {
 		return array_values(array_unique(array_merge($direct, $via ?? [])));
 	}
 
-	public function rolesAndPermissions(): array {
+	public function rolesAndPermissions() {
 		global $wpdb;
 		$p = $this->funcs->_getDBCustomMigrationTablePrefix();
 
@@ -170,7 +170,7 @@ trait DBPermissionTrait {
 	 * @param bool $force Nếu true, bỏ qua kiểm tra guard_name
 	 * @throws \Exception
 	 */
-	public function assignRole($roles): void {
+	public function assignRole($roles) {
 		global $wpdb;
 		$p      = $this->funcs->_getDBCustomMigrationTablePrefix();
 		$userId = $this->id();
@@ -187,11 +187,11 @@ trait DBPermissionTrait {
 
 		if (!$rows) return;
 
-		$roleIds = array_unique(array_map(static fn($r) => (int)$r['id'], $rows));
+		$roleIds = array_unique(array_map(static fn($r) => $r['id'], $rows));
 
 		// Chèn nếu chưa tồn tại
 		foreach ($roleIds as $rid) {
-			$exists = (int)$wpdb->get_var($wpdb->prepare("
+			$exists = $wpdb->get_var($wpdb->prepare("
 				SELECT 1 FROM {$p}model_has_roles WHERE model_id=%d AND role_id=%d LIMIT 1
 			", $userId, $rid));
 			if (!$exists) {
@@ -205,7 +205,7 @@ trait DBPermissionTrait {
 	/**
 	 * Kiểm tra user có role nào đó không.
 	 */
-	public function hasRole(string $role): bool {
+	public function hasRole($role) {
 		global $wpdb;
 		$p = $this->funcs->_getDBCustomMigrationTablePrefix();
 
@@ -235,7 +235,7 @@ trait DBPermissionTrait {
 		", array_merge([$role], $guardName, [$this->id()]));
 
 		// Trả về true nếu tồn tại ít nhất 1 bản ghi
-		return (bool) $wpdb->get_var($sql);
+		return $wpdb->get_var($sql);
 	}
 
 	/**
@@ -245,7 +245,7 @@ trait DBPermissionTrait {
 	 * @param bool $force Nếu true, bỏ qua kiểm tra guard_name
 	 * @throws \Exception
 	 */
-	public function givePermissionTo($perms): void {
+	public function givePermissionTo($perms) {
 		global $wpdb;
 		$p      = $this->funcs->_getDBCustomMigrationTablePrefix();
 		$userId = $this->id();
@@ -262,11 +262,11 @@ trait DBPermissionTrait {
 
 		if (!$rows) return;
 
-		$permIds = array_unique(array_map(static fn($r) => (int)$r['id'], $rows));
+		$permIds = array_unique(array_map(static fn($r) => $r['id'], $rows));
 
 		// Chèn nếu chưa tồn tại
 		foreach ($permIds as $pid) {
-			$exists = (int)$wpdb->get_var($wpdb->prepare("
+			$exists = $wpdb->get_var($wpdb->prepare("
 				SELECT 1 FROM {$p}model_has_permissions WHERE model_id=%d AND permission_id=%d LIMIT 1
 			", $userId, $pid));
 			if (!$exists) {
@@ -284,7 +284,7 @@ trait DBPermissionTrait {
 	/**
 	 * Beauty function - Kiểm tra user có permission cụ thể không.
 	 */
-	public function can(string $perm): bool {
+	public function can($perm) {
 		global $wpdb;
 		$p   = $this->funcs->_getDBCustomMigrationTablePrefix();
 		$uid = $this->id();
@@ -326,7 +326,7 @@ trait DBPermissionTrait {
 		    LIMIT 1
 		", array_merge([$perm], $guardName, [$uid, $uid], $guardName));
 
-		return (bool) $wpdb->get_var($sql);
+		return $wpdb->get_var($sql);
 	}
 
 }

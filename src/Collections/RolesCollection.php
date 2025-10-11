@@ -4,15 +4,15 @@ namespace WPSPCORE\Permission\Collections;
 
 class RolesCollection {
 
-	private       $user;
-	private array $roles;
+	private $user;
+	private $roles;
 
-	public function __construct(array $roles, $user) {
+	public function __construct($roles, $user) {
 		$this->user  = $user;
 		$this->roles = array_values($roles);
 	}
 
-	public function getPermissions(): array {
+	public function getPermissions() {
 		global $wpdb;
 		$p = $this->user->funcs->_getDBCustomMigrationTablePrefix();
 
@@ -23,7 +23,7 @@ class RolesCollection {
             WHERE mr.model_id=%d", $this->user->id()));
 	}
 
-	public function getRolesAndPermissions(): array {
+	public function getRolesAndPermissions() {
 		global $wpdb;
 		$p = $this->user->funcs->_getDBCustomMigrationTablePrefix();
 
@@ -61,7 +61,7 @@ class RolesCollection {
 		return $permissions;
 	}
 
-	public function toArray(): array {
+	public function toArray() {
 		return $this->roles;
 	}
 
@@ -69,19 +69,19 @@ class RolesCollection {
 		return $this->roles[$index] ?? null;
 	}
 
-	public function all(): array {
+	public function all() {
 		return $this->roles;
 	}
 
-	public function count(): int {
+	public function count() {
 		return count($this->roles);
 	}
 
-	public function isEmpty(): bool {
+	public function isEmpty() {
 		return empty($this->roles);
 	}
 
-	public function contains($role): bool {
+	public function contains($role) {
 		return in_array($role, $this->roles, true);
 	}
 

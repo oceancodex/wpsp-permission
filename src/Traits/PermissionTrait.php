@@ -23,7 +23,7 @@ trait PermissionTrait {
 	 *
 	 * @return array
 	 */
-	protected function resolveRoleIds(array $roles, bool $force = false): array {
+	protected function resolveRoleIds($roles, $force = false) {
 		$flat = collect($roles)->flatten()->filter()->all();
 		if (!$flat) return [];
 		$names = array_map(fn($r) => is_string($r) ? $r : ($r->name ?? null), $flat);
@@ -48,7 +48,7 @@ trait PermissionTrait {
 	 *
 	 * @return array
 	 */
-	protected function resolvePermissionIds(array $permissions, bool $force = false): array {
+	protected function resolvePermissionIds($permissions, $force = false) {
 		$flat = collect($permissions)->flatten()->filter()->all();
 		if (!$flat) return [];
 		$names = array_map(fn($p) => is_string($p) ? $p : ($p->name ?? null), $flat);
@@ -75,7 +75,7 @@ trait PermissionTrait {
 	 *
 	 * @return MorphToMany
 	 */
-	public function roles(): MorphToMany {
+	public function roles() {
 		$guardName = $this->getGuardName();
 
 		return $this->morphToMany(
@@ -93,7 +93,7 @@ trait PermissionTrait {
 	 *
 	 * @return MorphToMany
 	 */
-	public function permissions(): MorphToMany {
+	public function permissions() {
 		$guardName = $this->getGuardName();
 
 		return $this->morphToMany(
@@ -117,7 +117,7 @@ trait PermissionTrait {
 	 * @param bool $force Nếu true, bỏ qua kiểm tra guard_name
 	 * @throws \Exception
 	 */
-	public function assignRole(...$roles): self {
+	public function assignRole(...$roles) {
 		// Kiểm tra nếu tham số cuối là boolean $force
 		$force = false;
 		if (!empty($roles) && is_bool(end($roles))) {
@@ -149,7 +149,7 @@ trait PermissionTrait {
 	/**
 	 * Loại bỏ roles khỏi user.
 	 */
-	public function removeRole(...$roles): self {
+	public function removeRole(...$roles) {
 		// Kiểm tra nếu tham số cuối là boolean $force
 		$force = false;
 		if (!empty($roles) && is_bool(end($roles))) {
@@ -168,7 +168,7 @@ trait PermissionTrait {
 	 * @param bool $force Nếu true, bỏ qua kiểm tra guard_name
 	 * @throws \Exception
 	 */
-	public function syncRoles(...$roles): self {
+	public function syncRoles(...$roles) {
 		// Kiểm tra nếu tham số cuối là boolean $force
 		$force = false;
 		if (!empty($roles) && is_bool(end($roles))) {
@@ -197,7 +197,7 @@ trait PermissionTrait {
 	/**
 	 * Kiểm tra user có role nào đó không.
 	 */
-	public function hasRole($roles): bool {
+	public function hasRole($roles) {
 		$names = is_array($roles) ? $roles : [$roles];
 		$guardName = $this->getGuardName();
 		return $this->roles()
@@ -213,7 +213,7 @@ trait PermissionTrait {
 	 * @param bool $force Nếu true, bỏ qua kiểm tra guard_name
 	 * @throws \Exception
 	 */
-	public function givePermissionTo(...$permissions): self {
+	public function givePermissionTo(...$permissions) {
 		// Kiểm tra nếu tham số cuối là boolean $force
 		$force = false;
 		if (!empty($permissions) && is_bool(end($permissions))) {
@@ -245,7 +245,7 @@ trait PermissionTrait {
 	/**
 	 * Thu hồi permissions trực tiếp từ user.
 	 */
-	public function revokePermissionTo(...$permissions): self {
+	public function revokePermissionTo(...$permissions) {
 		// Kiểm tra nếu tham số cuối là boolean $force
 		$force = false;
 		if (!empty($permissions) && is_bool(end($permissions))) {
@@ -264,7 +264,7 @@ trait PermissionTrait {
 	 * @param bool $force Nếu true, bỏ qua kiểm tra guard_name
 	 * @throws \Exception
 	 */
-	public function syncPermissions(...$permissions): self {
+	public function syncPermissions(...$permissions) {
 		// Kiểm tra nếu tham số cuối là boolean $force
 		$force = false;
 		if (!empty($permissions) && is_bool(end($permissions))) {
@@ -293,7 +293,7 @@ trait PermissionTrait {
 	/**
 	 * Kiểm tra user có permission cụ thể không.
 	 */
-	public function hasPermissionTo(string $permissionName, $guardName = null): bool {
+	public function hasPermissionTo($permissionName, $guardName = null) {
 		// Lấy guard_name từ model hiện tại nếu không được truyền vào
 		if ($guardName === null) {
 			$guardName = $this->guard_name ?? ['web'];
@@ -320,10 +320,10 @@ trait PermissionTrait {
 	/**
 	 * Beauty function - Kiểm tra user có permission cụ thể không.
 	 */
-	public function can($permission, $arguments = []): bool {
+	public function can($permission, $arguments = []) {
 		// Lấy guard_name từ model hiện tại
 		$guardName = $this->guard_name ?? ['web'];
-		return $this->hasPermissionTo((string)$permission, $guardName);
+		return $this->hasPermissionTo($permission, $guardName);
 	}
 
 }
