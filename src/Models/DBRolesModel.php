@@ -1,8 +1,8 @@
 <?php
 
-namespace WPSPCORE\Permission\Collections;
+namespace WPSPCORE\Permission\Models;
 
-class RolesCollection {
+class DBRolesModel {
 
 	private $user;
 	private $roles;

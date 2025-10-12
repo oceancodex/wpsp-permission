@@ -3,12 +3,12 @@ namespace WPSPCORE\Permission\Models;
 
 use Illuminate\Database\Eloquent\SoftDeletes;
 use WPSPCORE\Database\Base\BaseModel;
-use WPSPCORE\Permission\Contracts\PermissionContract;
+use WPSPCORE\Permission\Traits\PermissionsTrait;
 use WPSPCORE\Traits\ObserversTrait;
 
-class PermissionsModel extends BaseModel implements PermissionContract {
+class PermissionsModel extends BaseModel {
 
-	use SoftDeletes, ObserversTrait;
+	use SoftDeletes, ObserversTrait, PermissionsTrait;
 
 	protected $connection = 'wordpress';
 	protected $prefix     = 'wp_wpsp_';
@@ -54,29 +54,5 @@ class PermissionsModel extends BaseModel implements PermissionContract {
 //		$this->setConnection('wordpress');
 //		parent::__construct($attributes);
 //	}
-
-	/**
-	 * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
-	 */
-	public function roles() {
-		return $this->belongsToMany(
-			$this->funcs->_config('permission.models.role'),
-			'cm_role_has_permissions',
-			'permission_id',
-			'role_id'
-		);
-	}
-
-	/*
-	 *
-	 */
-
-	public function getName() {
-		return $this->attributes['name'];
-	}
-
-	public function getGuardName() {
-		return $this->attributes['guard_name'] ?? null;
-	}
 
 }
