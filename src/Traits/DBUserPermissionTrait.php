@@ -2,7 +2,7 @@
 
 namespace WPSPCORE\Permission\Traits;
 
-trait DBPermissionTrait {
+trait DBUserPermissionTrait {
 
 	public function roles() {
 		global $wpdb;

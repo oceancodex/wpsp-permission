@@ -4,12 +4,12 @@ namespace WPSPCORE\Permission\Models;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use WPSPCORE\Database\Base\BaseModel;
 use WPSPCORE\Permission\Contracts\RoleContract;
-use WPSPCORE\Permission\Traits\PermissionTrait;
+use WPSPCORE\Permission\Traits\UserPermissionTrait;
 use WPSPCORE\Traits\ObserversTrait;
 
 class RolesModel extends BaseModel implements RoleContract {
 
-	use SoftDeletes, ObserversTrait, PermissionTrait;
+	use SoftDeletes, ObserversTrait, UserPermissionTrait;
 
 	protected $connection = 'wordpress';
 	protected $prefix     = 'wp_wpsp_';

@@ -4,7 +4,7 @@ namespace WPSPCORE\Permission\Traits;
 
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 
-trait PermissionTrait {
+trait UserPermissionTrait {
 
 	/**
 	 * Lấy guard_name của model hiện tại.
