@@ -1,16 +1,15 @@
 <?php
 namespace WPSPCORE\Permission\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use WPSPCORE\Database\Traits\ModelsTrait;
+use WPSPCORE\Database\Base\BaseModel;
 use WPSPCORE\Permission\Contracts\RoleContract;
 use WPSPCORE\Permission\Traits\PermissionTrait;
 use WPSPCORE\Traits\ObserversTrait;
 
-class RolesModel extends Model implements RoleContract {
+class RolesModel extends BaseModel implements RoleContract {
 
-	use ModelsTrait, SoftDeletes, ObserversTrait, PermissionTrait;
+	use SoftDeletes, ObserversTrait, PermissionTrait;
 
 	protected $connection = 'wordpress';
 	protected $prefix     = 'wp_wpsp_';
@@ -62,7 +61,7 @@ class RolesModel extends Model implements RoleContract {
 	 */
 	public function permissions() {
 		return $this->belongsToMany(
-			PermissionsModel::class,
+			$this->funcs->_config('permission.models.permission'),
 			'cm_role_has_permissions',
 			'role_id',
 			'permission_id'

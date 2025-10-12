@@ -15,6 +15,14 @@ trait PermissionTrait {
 		return $this->guard_name ?? ['web'];
 	}
 
+	protected function roleModel() {
+		return $this->funcs->_config('permission.models.role');
+	}
+
+	protected function permissionModel() {
+		return $this->funcs->_config('permission.models.permission');
+	}
+
 	/**
 	 * Chuyển đổi mảng roles thành mảng ID của roles.
 	 *
@@ -30,7 +38,7 @@ trait PermissionTrait {
 		$names = array_filter($names);
 		if (!$names) return [];
 
-		$query = $this->roleModel::query()->whereIn('name', $names);
+		$query = $this->roleModel()::query()->whereIn('name', $names);
 
 		if (!$force) {
 			$guardName = $this->getGuardName();
@@ -55,7 +63,7 @@ trait PermissionTrait {
 		$names = array_filter($names);
 		if (!$names) return [];
 
-		$query = $this->permissionModel::query()->whereIn('name', $names);
+		$query = $this->permissionModel()::query()->whereIn('name', $names);
 
 		if (!$force) {
 			$guardName = $this->getGuardName();
@@ -79,7 +87,7 @@ trait PermissionTrait {
 		$guardName = $this->getGuardName();
 
 		return $this->morphToMany(
-			$this->roleModel,
+			$this->roleModel(),
 			'model',
 			'cm_model_has_roles',
 			'model_id',
@@ -97,7 +105,7 @@ trait PermissionTrait {
 		$guardName = $this->getGuardName();
 
 		return $this->morphToMany(
-			$this->permissionModel,
+			$this->permissionModel(),
 			'model',
 			'cm_model_has_permissions',
 			'model_id',
@@ -130,7 +138,7 @@ trait PermissionTrait {
 			if (!$force) {
 				// Validate guard_name của roles phải khớp với user
 				$guardName = $this->getGuardName();
-				$invalidRoles = $this->roleModel::query()
+				$invalidRoles = $this->roleModel()::query()
 					->whereIn('id', $roleIds)
 					->whereNotIn('guard_name', is_array($guardName) ? $guardName : [$guardName])
 					->exists();
@@ -180,7 +188,7 @@ trait PermissionTrait {
 		if ($roleIds && !$force) {
 			// Validate guard_name của roles phải khớp với user
 			$guardName = $this->getGuardName();
-			$invalidRoles = $this->roleModel::query()
+			$invalidRoles = $this->roleModel()::query()
 				->whereIn('id', $roleIds)
 				->whereNotIn('guard_name', is_array($guardName) ? $guardName : [$guardName])
 				->exists();
@@ -226,7 +234,7 @@ trait PermissionTrait {
 			if (!$force) {
 				// Validate guard_name của permissions phải khớp với model hiện tại
 				$guardName = $this->getGuardName();
-				$invalidPermissions = $this->permissionModel::query()
+				$invalidPermissions = $this->permissionModel()::query()
 					->whereIn('id', $ids)
 					->whereNotIn('guard_name', is_array($guardName) ? $guardName : [$guardName])
 					->exists();
@@ -276,7 +284,7 @@ trait PermissionTrait {
 		if ($ids && !$force) {
 			// Validate guard_name của permissions phải khớp với model hiện tại
 			$guardName = $this->getGuardName();
-			$invalidPermissions = $this->permissionModel::query()
+			$invalidPermissions = $this->permissionModel()::query()
 				->whereIn('id', $ids)
 				->whereNotIn('guard_name', is_array($guardName) ? $guardName : [$guardName])
 				->exists();
