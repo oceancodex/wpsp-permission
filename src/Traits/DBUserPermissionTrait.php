@@ -2,6 +2,8 @@
 
 namespace WPSPCORE\Permission\Traits;
 
+use WPSPCORE\Permission\Models\DBRolesModel;
+
 trait DBUserPermissionTrait {
 
 	public function roles() {
@@ -9,7 +11,7 @@ trait DBUserPermissionTrait {
 		$p = $this->funcs->_getDBCustomMigrationTablePrefix();
 
 		// Guard của user (mặc định ['web'])
-		$guardName = $this->guard_name ?? ['web'];
+		$guardName = $this->guardName ?? ['web'];
 
 		// Ép thành mảng nếu không phải mảng
 		if (!is_array($guardName)) {
@@ -35,7 +37,11 @@ trait DBUserPermissionTrait {
 		$prepared = call_user_func_array([$wpdb, 'prepare'], array_merge([$sql], $params));
 		$roles = $wpdb->get_col($prepared);
 
-		return is_array($roles) ? $roles : [];
+		if ($roles) {
+			return new DBRolesModel($roles, $this->authUser);
+		}
+
+		return null;
 	}
 
 	public function permissions() {
@@ -43,7 +49,7 @@ trait DBUserPermissionTrait {
 		$p = $this->funcs->_getDBCustomMigrationTablePrefix();
 
 		// Guard của user (mặc định ['web'])
-		$guardName = $this->guard_name ?? ['web'];
+		$guardName = $this->guardName ?? ['web'];
 
 		// Ép về mảng nếu là chuỗi
 		if (!is_array($guardName)) {
@@ -92,13 +98,13 @@ trait DBUserPermissionTrait {
 	public function rolesAndPermissions() {
 		global $wpdb;
 		$p = $this->funcs->_getDBCustomMigrationTablePrefix();
-
-		if (empty($this->roles) || !is_array($this->roles)) {
+		$roles = $this->roles !== null && !empty($this->roles->toArray()) ? $this->roles->toArray() : [];
+		if (empty($roles)) {
 			return [];
 		}
 
 		// Guard của user (mặc định ['web'])
-		$guardName = $this->guard_name ?? ['web'];
+		$guardName = $this->guardName ?? ['web'];
 
 		// Ép về mảng nếu là chuỗi
 		if (!is_array($guardName)) {
@@ -106,7 +112,7 @@ trait DBUserPermissionTrait {
 		}
 
 		// Tạo placeholders cho roles
-		$roleCount = count($this->roles);
+		$roleCount = count($roles);
 		if ($roleCount === 0) {
 			return [];
 		}
@@ -132,7 +138,7 @@ trait DBUserPermissionTrait {
 		// Tham số theo đúng thứ tự placeholder
 		$params = array_merge(
 			[$this->id()],
-			array_values($this->roles),
+			array_values($roles),
 			$guardName, // cho r.guard_name IN (...)
 			$guardName  // cho pr.guard_name IN (...)
 		);
@@ -145,7 +151,7 @@ trait DBUserPermissionTrait {
 		$permissions = [];
 
 		// Khởi tạo array cho tất cả roles (kể cả không có permission)
-		foreach ($this->roles as $roleName) {
+		foreach ($roles as $roleName) {
 			$permissions[$roleName] = [];
 		}
 
@@ -210,7 +216,7 @@ trait DBUserPermissionTrait {
 		$p = $this->funcs->_getDBCustomMigrationTablePrefix();
 
 		// Lấy guard_name từ thuộc tính hoặc mặc định là ['web']
-		$guardName = $this->guard_name ?? ['web'];
+		$guardName = $this->guardName ?? ['web'];
 
 		// Nếu là chuỗi thì ép về mảng
 		if (!is_array($guardName)) {
@@ -290,7 +296,7 @@ trait DBUserPermissionTrait {
 		$uid = $this->id();
 
 		// Lấy guard_name từ thuộc tính hoặc mặc định là ['web']
-		$guardName = $this->guard_name ?? ['web'];
+		$guardName = $this->guardName ?? ['web'];
 
 		// Ép về mảng nếu là chuỗi
 		if (!is_array($guardName)) {
