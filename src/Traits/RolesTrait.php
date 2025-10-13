@@ -33,6 +33,29 @@ trait RolesTrait {
 	 */
 
 	/**
+	 * Kiểm tra user hoặc role có permission cụ thể không.
+	 */
+	public function hasPermissionTo($permissionName, $guardName = null) {
+		// Lấy guard_name từ model hiện tại nếu không được truyền vào
+		if ($guardName === null) {
+			$guardName = $this->guard_name ?? ['web'];
+		}
+
+		// Kiểm tra permission trực tiếp với guard_name
+		if ($this->permissions()->where('name', $permissionName)->whereIn('guard_name', is_array($guardName) ? $guardName : [$guardName])->exists()) {
+			return true;
+		}
+
+		// Kiểm tra permission thông qua roles với guard_name
+		return $this->roles()
+			->whereIn('guard_name', is_array($guardName) ? $guardName : [$guardName])
+			->whereHas('permissions', function($q) use ($permissionName, $guardName) {
+				$q->where('name', $permissionName)->whereIn('guard_name', is_array($guardName) ? $guardName : [$guardName]);
+			})
+			->exists();
+	}
+
+	/**
 	 * Cấp permissions trực tiếp cho user hoặc role.
 	 *
 	 * @param mixed ...$permissions
@@ -116,29 +139,6 @@ trait RolesTrait {
 
 		$this->permissions()->sync($ids);
 		return $this;
-	}
-
-	/**
-	 * Kiểm tra user hoặc role có permission cụ thể không.
-	 */
-	public function hasPermissionTo($permissionName, $guardName = null) {
-		// Lấy guard_name từ model hiện tại nếu không được truyền vào
-		if ($guardName === null) {
-			$guardName = $this->guard_name ?? ['web'];
-		}
-
-		// Kiểm tra permission trực tiếp với guard_name
-		if ($this->permissions()->where('name', $permissionName)->whereIn('guard_name', is_array($guardName) ? $guardName : [$guardName])->exists()) {
-			return true;
-		}
-
-		// Kiểm tra permission thông qua roles với guard_name
-		return $this->roles()
-			->whereIn('guard_name', is_array($guardName) ? $guardName : [$guardName])
-			->whereHas('permissions', function($q) use ($permissionName, $guardName) {
-				$q->where('name', $permissionName)->whereIn('guard_name', is_array($guardName) ? $guardName : [$guardName]);
-			})
-			->exists();
 	}
 
 }
