@@ -170,6 +170,42 @@ trait DBUserPermissionTrait {
 	 */
 
 	/**
+	 * Kiểm tra user có role nào đó không.
+	 */
+	public function hasRole($role) {
+		global $wpdb;
+		$p = $this->funcs->_getDBCustomMigrationTablePrefix();
+
+		// Lấy guard_name từ thuộc tính hoặc mặc định là ['web']
+		$guardName = $this->guardName ?? ['web'];
+
+		// Nếu là chuỗi thì ép về mảng
+		if (!is_array($guardName)) {
+			$guardName = [$guardName];
+		}
+
+		// Tạo placeholders tương ứng với số lượng guard_name
+		$placeholders = implode(',', array_fill(0, count($guardName), '%s'));
+
+		// Chuẩn bị SQL
+		$sql = $wpdb->prepare("
+		    SELECT 1 FROM {$p}roles r
+		    WHERE r.name = %s
+		      AND r.guard_name IN ($placeholders)
+		      AND EXISTS (
+		          SELECT 1
+		          FROM {$p}model_has_roles mr
+		          WHERE mr.model_id = %d
+		            AND mr.role_id = r.id
+		      )
+		    LIMIT 1
+		", array_merge([$role], $guardName, [$this->id()]));
+
+		// Trả về true nếu tồn tại ít nhất 1 bản ghi
+		return $wpdb->get_var($sql);
+	}
+
+	/**
 	 * Gán roles cho user mà không xóa các roles đã có.
 	 *
 	 * @param mixed ...$roles
@@ -206,42 +242,6 @@ trait DBUserPermissionTrait {
 				", $userId, $rid));
 			}
 		}
-	}
-
-	/**
-	 * Kiểm tra user có role nào đó không.
-	 */
-	public function hasRole($role) {
-		global $wpdb;
-		$p = $this->funcs->_getDBCustomMigrationTablePrefix();
-
-		// Lấy guard_name từ thuộc tính hoặc mặc định là ['web']
-		$guardName = $this->guardName ?? ['web'];
-
-		// Nếu là chuỗi thì ép về mảng
-		if (!is_array($guardName)) {
-			$guardName = [$guardName];
-		}
-
-		// Tạo placeholders tương ứng với số lượng guard_name
-		$placeholders = implode(',', array_fill(0, count($guardName), '%s'));
-
-		// Chuẩn bị SQL
-		$sql = $wpdb->prepare("
-		    SELECT 1 FROM {$p}roles r
-		    WHERE r.name = %s
-		      AND r.guard_name IN ($placeholders)
-		      AND EXISTS (
-		          SELECT 1
-		          FROM {$p}model_has_roles mr
-		          WHERE mr.model_id = %d
-		            AND mr.role_id = r.id
-		      )
-		    LIMIT 1
-		", array_merge([$role], $guardName, [$this->id()]));
-
-		// Trả về true nếu tồn tại ít nhất 1 bản ghi
-		return $wpdb->get_var($sql);
 	}
 
 	/**
