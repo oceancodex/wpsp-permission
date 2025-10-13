@@ -13,7 +13,19 @@ trait RolesTrait {
 	}
 
 	/*
-	 *
+	 * Models.
+	 */
+
+	protected function roleModel() {
+		return $this->funcs->_config('permission.models.role');
+	}
+
+	protected function permissionModel() {
+		return $this->funcs->_config('permission.models.permission');
+	}
+
+	/*
+	 * Relationships.
 	 */
 
 	/**
@@ -139,6 +151,31 @@ trait RolesTrait {
 
 		$this->permissions()->sync($ids);
 		return $this;
+	}
+
+	/**
+	 * Chuyển đổi mảng permissions thành mảng ID của permissions.
+	 *
+	 * @param array $permissions
+	 * @param bool $force Nếu true, không kiểm tra guard_name
+	 *
+	 * @return array
+	 */
+	protected function resolvePermissionIds($permissions, $force = false) {
+		$flat = collect($permissions)->flatten()->filter()->all();
+		if (!$flat) return [];
+		$names = array_map(fn($p) => is_string($p) ? $p : ($p->name ?? null), $flat);
+		$names = array_filter($names);
+		if (!$names) return [];
+
+		$query = $this->permissionModel()::query()->whereIn('name', $names);
+
+		if (!$force) {
+			$guardName = $this->getGuardName();
+			$query->whereIn('guard_name', is_array($guardName) ? $guardName : [$guardName]);
+		}
+
+		return $query->pluck('id')->all();
 	}
 
 }
