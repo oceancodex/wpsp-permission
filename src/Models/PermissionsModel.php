@@ -1,19 +1,18 @@
 <?php
 namespace WPSPCORE\Permission\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use WPSPCORE\Database\Traits\ModelsTrait;
-use WPSPCORE\Permission\Contracts\PermissionContract;
+use WPSPCORE\Database\Base\BaseModel;
+use WPSPCORE\Permission\Traits\PermissionsTrait;
 use WPSPCORE\Traits\ObserversTrait;
 
-class PermissionsModel extends Model implements PermissionContract {
+class PermissionsModel extends BaseModel {
 
-	use ModelsTrait, SoftDeletes, ObserversTrait;
+	use SoftDeletes, ObserversTrait, PermissionsTrait;
 
 	protected $connection = 'wordpress';
 	protected $prefix     = 'wp_wpsp_';
-	protected $table      = 'cm_permissions';                  // If this table created by custom migration, you need to add prefix "cm_" to the table name, like this: "cm_cm_permissions"
+	protected $table      = 'cm_permissions';
 //	protected $primaryKey = 'id';
 
 //	protected $appends;
@@ -55,29 +54,5 @@ class PermissionsModel extends Model implements PermissionContract {
 //		$this->setConnection('wordpress');
 //		parent::__construct($attributes);
 //	}
-
-	/**
-	 * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
-	 */
-	public function roles() {
-		return $this->belongsToMany(
-			RolesModel::class,
-			'cm_role_has_permissions',
-			'permission_id',
-			'role_id'
-		);
-	}
-
-	/*
-	 *
-	 */
-
-	public function getName() {
-		return $this->attributes['name'];
-	}
-
-	public function getGuardName() {
-		return $this->attributes['guard_name'] ?? null;
-	}
 
 }
