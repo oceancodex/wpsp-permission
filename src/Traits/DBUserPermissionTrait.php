@@ -9,7 +9,7 @@ trait DBUserPermissionTrait {
 	public function rolesAndPermissions() {
 		global $wpdb;
 		$p = $this->funcs->_getDBCustomMigrationTablePrefix();
-		$roles = $this->roles !== null && !empty($this->roles->toArray()) ? $this->roles->toArray() : [];
+		$roles = $this->roles() !== null && !empty($this->roles()->toArray()) ? $this->roles()->toArray() : [];
 		if (empty($roles)) {
 			return [];
 		}
@@ -113,13 +113,15 @@ trait DBUserPermissionTrait {
 
 		// Chuẩn bị và thực thi
 		$prepared = call_user_func_array([$wpdb, 'prepare'], array_merge([$sql], $params));
+
+		// Lấy danh sách roles.
 		$roles = $wpdb->get_col($prepared);
 
-		if ($roles) {
-			return new DBRolesModel($roles, $this->authUser);
-		}
+//		if ($roles) {
+			return new DBRolesModel($roles, $this);
+//		}
 
-		return null;
+//		return null;
 	}
 
 	/**
@@ -295,14 +297,7 @@ trait DBUserPermissionTrait {
 		}
 	}
 
-	/*
-	 * Helpers
-	 */
-
-	/**
-	 * Beauty function - Kiểm tra user có permission cụ thể không.
-	 */
-	public function can($perm) {
+	public function hasPermissionTo($perm) {
 		global $wpdb;
 		$p   = $this->funcs->_getDBCustomMigrationTablePrefix();
 		$uid = $this->id();
@@ -345,6 +340,17 @@ trait DBUserPermissionTrait {
 		", array_merge([$perm], $guardName, [$uid, $uid], $guardName));
 
 		return $wpdb->get_var($sql);
+	}
+
+	/*
+	 * Helpers
+	 */
+
+	/**
+	 * Beauty function - Kiểm tra user có permission cụ thể không.
+	 */
+	public function can($perm) {
+		return $this->hasPermissionTo($perm);
 	}
 
 }
